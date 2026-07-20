@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>いきものマップ記録アプリ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f0f8ff; color: #333; box-sizing: border-box; }
+        h2 { margin-top: 5px; color: #2c3e50; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        input, button { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+        button { background: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+        button:hover { background: #218838; }
+        /* 地図の大きさを指定 */
+        #map { height: 350px; width: 100%; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 1; }
+        .record-item { background: white; padding: 15px; margin-bottom: 15px; border-radius: 5px; border-left: 5px solid #28a745; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        img { max-width: 100%; max-height: 200px; object-fit: cover; border-radius: 4px; margin-top: 10px; display: block; }
+        /* 地図の中のポップアップ画像のサイズ */
+        .popup-img { max-width: 150px; border-radius: 4px; display: block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>🐾 いきものマップ記録アプリ</h2>
+
+    <div id="map"></div>
+
+    <div class="card">
+        <h3>📍 新しい記録を追加</h3>
+        <p style="font-size: 12px; color: #666; margin: 0;">※GPSが動かない場合は、<b>上の地図をタップ</b>して場所を選べます！</p>
+        
+        <label>📸 写真を撮影 / 選択</label>
+        <input type="file" id="photoInput" accept="image/*">
+        
+        <label>🔢 頭数（ひき数）</label>
+        <input type="number" id="countInput" value="1" min="1">
+        
+        <div style="font-size: 13px; color: #d9534f; font-weight: bold; margin: 8px 0;">
+            選択中の位置: <span id="locationStatus">未選択</span>
+        </div>
+        
+        <button onclick="saveRecord()">✨ この場所に記録を保存</button>
+    </div>
+
+    <h3>📜 これまでの記録リスト</h3>
+    <div id="recordList"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let tempMarker = null; // 新しく追加する用の仮ピン
+        let selectedLat = null;
+        let selectedLng = null;
+
+        window.onload = function() {
+            initMap();
+            displayRecords();
+            tryGPS(); // 起動時に自動でGPS取得を試みる
+        };
+
+        // 地図の初期化
+        function initMap() {
+            // 最初は日本の中心付近を表示（GPSが取れたらそこに飛びます）
+            map = L.map('map').setView([35.6812, 139.7671], 12);
+
+            // 地図の見た目をセット
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+            // 🔥【改善策】地図をクリックしたら、そこにピンを立てて位置情報をセットする機能
+            map.on('click', function(e) {
+                setLocation(e.latlng.lat, e.latlng.lng, "地図から選んだ場所");
+            });
+        }
+
+        // GPSからの取得を試みる機能
+        function tryGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        map.setView([lat, lng], 15); // 現在地にズーム
+                        setLocation(lat, lng, "GPSで取得した現在地");
+                    },
+                    (error) => {
+                        // スマホのセキュリティで弾かれた場合はここを通る
+                        document.getElementById('locationStatus').innerText = "GPSブロック中。上の地図をタップして場所を選んでね！";
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            }
+        }
+
+        // 選択した位置を画面に反映してピンを立てる
+        function setLocation(lat, lng, sourceText) {
+            selectedLat = lat;
+            selectedLng = lng;
+            document.getElementById('locationStatus').innerText = `${sourceText}`;
+
+            // すでに立っている仮ピンがあれば一度消す
+            if (tempMarker) { map.removeLayer(tempMarker); }
+            
+            // 新しい仮ピンを立てる
+            tempMarker = L.marker([lat, lng]).addTo(map).bindPopup("ここに記録します！").openPopup();
+        }
+
+        // データの保存
+        function saveRecord() {
+            const photoInput = document.getElementById('photoInput');
+            const countInput = document.getElementById('countInput');
+            
+            if (!photoInput.files || photoInput.files.length === 0) {
+                alert('写真を撮影または選択してください！');
+                return;
+            }
+            if (selectedLat === null || selectedLng === null) {
+                alert('位置情報がありません。上の地図をタップして場所を決めてください。');
+                return;
+            }
+
+            const file = photoInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onloadend = function () {
+                const now = new Date().toLocaleString('ja-JP');
+                const record = {
+                    dateTime: now,
+                    count: countInput.value,
+                    lat: selectedLat,
+                    lng: selectedLng,
+                    photo: reader.result
+                };
+                
+                let records = JSON.parse(localStorage.getItem('animalMapRecords')) || [];
+                records.unshift(record);
+                localStorage.setItem('animalMapRecords', JSON.stringify(records));
+                
+                // 画面と地図を更新
+                displayRecords();
+                alert('地図に新しく記録しました！');
+                
+                // 入力欄のリセット
+                photoInput.value = '';
+                countInput.value = 1;
+                if (tempMarker) { map.removeLayer(tempMarker); }
+                selectedLat = null; selectedLng = null;
+                document.getElementById('locationStatus').innerText = "未選択";
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        // 記録の表示 ＆ 地図へのピン立て
+        function displayRecords() {
+            const recordList = document.getElementById('recordList');
+            recordList.innerHTML = '';
+            
+            // 地図上の古いピンを全部消す（新しく打ち直すため）
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker && layer !== tempMarker) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            const records = JSON.parse(localStorage.getItem('animalMapRecords')) || [];
+            
+            if (records.length === 0) {
+                recordList.innerHTML = '<p style="color: #666;">まだ記録はありません。</p>';
+                return;
+            }
+            
+            records.forEach(item => {
+                // 1. 下部のリストに追加
+                const div = document.createElement('div');
+                div.className = 'record-item';
+                div.innerHTML = `
+                    <strong>📅 日時:</strong> ${item.dateTime}<br>
+                    <strong>🔢 頭数:</strong> ${item.count} 頭<br>
+                    <img src="${item.photo}">
+                `;
+                recordList.appendChild(div);
+
+                // 2. 🗺️ 地図に本番用のピンを立てる
+                const marker = L.marker([item.lat, item.lng]).addTo(map);
+                
+                // ピンをクリックしたときに写真と情報をポップアップさせる
+                marker.bindPopup(`
+                    <div style="font-size:12px;">
+                        <b>📅 ${item.dateTime}</b><br>
+                        🐾 <b>頭数:</b> ${item.count}頭<br>
+                        <img src="${item.photo}" class="popup-img">
+                    </div>
+                `);
+            });
+        }
+    </script>
+</body>
+</html>
