@@ -3,69 +3,67 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>🕊️ ハト観察マップ研究版 V3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<title>🕊️ ハト観察マップ V3</title>
+
+<link rel="stylesheet1.9.4/dist/leaflet.css"/>
 
 <style>
 body{
-margin:0;
-padding:12px;
-font-family:sans-serif;
-background:linear-gradient(#87ceeb,#eef6ff);
+  margin:0;
+  padding:12px;
+  font-family:sans-serif;
+  background:linear-gradient(#87ceeb,#eef6ff);
 }
 
 h1{
-text-align:center;
+  text-align:center;
 }
 
 #map{
-height:360px;
-border-radius:16px;
+  height:360px;
+  border-radius:12px;
 }
 
-.card,.record{
-background:#fff;
-border-radius:16px;
-padding:12px;
-margin:12px 0;
-box-shadow:0 2px 8px rgba(0,0,0,.1);
+.card{
+  background:white;
+  margin-top:10px;
+  padding:12px;
+  border-radius:12px;
 }
 
 input,button{
-width:100%;
-padding:12px;
-margin-top:8px;
-box-sizing:border-box;
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  box-sizing:border-box;
 }
 
 button{
-background:#4a6fa5;
-color:#fff;
-border:none;
-border-radius:10px;
+  background:#4a6fa5;
+  color:white;
+  border:none;
 }
 
 .stats{
-display:flex;
-gap:8px;
+  display:flex;
+  gap:10px;
 }
 
 .stats div{
-flex:1;
-background:#eef6ff;
-padding:10px;
-border-radius:10px;
-text-align:center;
+  flex:1;
+  background:#eef6ff;
+  text-align:center;
+  padding:10px;
+  border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🕊️ ハト観察マップ研究版 V3</h1>
+<h1>🕊️ ハト観察マップ V3</h1>
 
 <div id="map"></div>
 
@@ -73,11 +71,7 @@ text-align:center;
 
 <input id="observer" placeholder="観察者名">
 
-<input id="count"
-type="number"
-min="1"
-value="1"
-placeholder="羽数">
+<input id="count" type="number" min="1" value="1">
 
 <button onclick="saveRecord()">
 記録を送信
@@ -92,71 +86,160 @@ GPS取得中...
 <div class="card stats">
 
 <div>
-<b id="r">0</b>
+<b id="recordCount">0</b>
 <br>
 記録数
 </div>
 
 <div>
-<b id="b">0</b>
+<b id="birdCount">0</b>
 <br>
 総羽数
 </div>
 
 <div>
-<b id="a">0</b>
+<b id="averageBirds">0</b>
 <br>
 平均
 </div>
 
 </div>
 
-<div id="list"></div>
-
-https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+pkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
 const API =
 "https://script.google.com/macros/s/AKfycbycQMQqAz7wk-uuiDWK9bePCKmI-YilumZDxJWKHsIX4Vv34RsKR0uZYVqbt-s4DM0Wgw/exec";
 
-let lat=null;
-let lng=null;
+let lat = null;
+let lng = null;
 
 const map =
-L.map("map")
-.setView([35.66,138.56],11);
+L.map("map").setView([35.66,138.56],11);
 
 L.tileLayer(
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+{
+ attribution:"© OpenStreetMap"
+}
 ).addTo(map);
 
 if(navigator.geolocation){
 
-navigator.geolocation.getCurrentPosition(
+  navigator.geolocation.getCurrentPosition(
 
-p=>{
+    pos=>{
 
-lat=p.coords.latitude;
-lng=p.coords.longitude;
+      lat=pos.coords.latitude;
+      lng=pos.coords.longitude;
 
-status.textContent=
-"✅ GPS取得成功";
+      status.textContent =
+      "✅ GPS取得成功";
 
-map.setView([lat,lng],14);
+      map.setView([lat,lng],15);
 
-},
+      L.marker([lat,lng])
+      .addTo(map)
+      .bindPopup("現在位置");
 
-()=>{
-status.textContent=
-"GPS取得失敗";
-}
+    },
 
-);
+    err=>{
+
+      status.textContent =
+      "GPS取得失敗";
+
+    }
+
+  );
 
 }
 
 async function saveRecord(){
 
-if(!observer.value){
-alert("観察者名を入力");
+  if(!observer.value){
+    alert("観察者名を入力してください");
+    return;
+  }
+
+  await fetch(API,{
+    method:"POST",
+    body:JSON.stringify({
+      observeDate:new Date().toISOString(),
+      observer:observer.value,
+      count:count.value,
+      lat:lat,
+      lng:lng,
+      weather:"-",
+      memo:"",
+      photo:""
+    })
+  });
+
+  alert("保存しました");
+
+  loadData();
+
+}
+
+async function loadData(){
+
+  try{
+
+    const res =
+    await fetch(API);
+
+    const data =
+    await res.json();
+
+    let totalBirds = 0;
+
+    document.getElementById(
+      "recordCount"
+    ).textContent =
+    data.length;
+
+    data.forEach(x=>{
+
+      totalBirds +=
+      Number(x.count || 0);
+
+      if(x.lat && x.lng){
+
+        L.marker([
+          Number(x.lat),
+          Number(x.lng)
+        ])
+        .addTo(map);
+
+      }
+
+    });
+
+    document.getElementById(
+      "birdCount"
+    ).textContent =
+    totalBirds;
+
+    document.getElementById(
+      "averageBirds"
+    ).textContent =
+    data.length
+    ? (totalBirds/data.length).toFixed(1)
+    : 0;
+
+  }catch(e){
+
+    console.log(e);
+
+  }
+
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
