@@ -1,14 +1,150 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>テスト</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🕊️ ハト観察マップ V5</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+body{
+  margin:0;
+  padding:10px;
+  font-family:sans-serif;
+  background:#eef6ff;
+}
+h1{
+  text-align:center;
+}
+#map{
+  height:70vh;
+  border-radius:12px;
+}
+.card{
+  background:white;
+  border-radius:12px;
+  padding:12px;
+  margin-top:10px;
+}
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#2d6cdf;
+  color:white;
+}
+</style>
 </head>
+
 <body>
 
-<h1>🕊️ ハト観察マップ V5 テスト成功</h1>
+<h1>🕊️ ハト観察マップ V5</h1>
 
-<p>GitHub Pages 動作確認中</p>
+<div id="map"></div>
+
+<div class="card">
+<button onclick="getLocation()">📍現在地取得</button>
+
+<div id="status">
+地図タップまたはGPS取得
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+const map =
+L.map('map')
+.setView([35.66,138.56],11);
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+attribution:'© OpenStreetMap'
+}
+).addTo(map);
+
+let currentMarker = null;
+
+function getLocation(){
+
+  status.innerText =
+  "GPS取得中...";
+
+  navigator.geolocation.getCurrentPosition(
+
+    function(pos){
+
+      const lat =
+      pos.coords.latitude;
+
+      const lng =
+      pos.coords.longitude;
+
+      status.innerText =
+      "✅ GPS取得成功";
+
+      if(currentMarker){
+        map.removeLayer(
+          currentMarker
+        );
+      }
+
+      currentMarker =
+      L.marker([lat,lng])
+      .addTo(map)
+      .bindPopup("📍現在位置")
+      .openPopup();
+
+      map.setView(
+        [lat,lng],
+        16
+      );
+
+    },
+
+    function(){
+
+      status.innerText =
+      "GPS取得失敗。地図をタップしてください";
+
+    },
+
+    {
+      enableHighAccuracy:true,
+      timeout:20000
+    }
+
+  );
+
+}
+
+map.on('click',function(e){
+
+  if(currentMarker){
+    map.removeLayer(
+      currentMarker
+    );
+  }
+
+  currentMarker =
+  L.marker(
+    [e.latlng.lat,e.latlng.lng]
+  )
+  .addTo(map)
+  .bindPopup("📌選択位置")
+  .openPopup();
+
+  status.innerText =
+  "✅ 位置選択完了";
+
+});
+
+</script>
 
 </body>
 </html>
