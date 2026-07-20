@@ -1,51 +1,75 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1">
 
 <title>🕊️ ハト観察マップ V5</title>
 
-@1.9.4/dist/leaflet.css">
-unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+pkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
+
 body{
-  margin:0;
-  padding:10px;
-  font-family:sans-serif;
-  background:#eef6ff;
+margin:0;
+padding:10px;
+font-family:sans-serif;
+background:#eef6ff;
 }
 
 h1{
-  text-align:center;
+text-align:center;
 }
 
 #map{
-  height:60vh;
-  border-radius:12px;
+height:60vh;
+border-radius:12px;
 }
 
 .card{
-  background:white;
-  padding:12px;
-  margin-top:10px;
-  border-radius:12px;
+background:white;
+padding:12px;
+margin-top:10px;
+border-radius:12px;
+box-shadow:0 2px 5px rgba(0,0,0,.1);
 }
 
-input,textarea,button{
-  width:100%;
-  box-sizing:border-box;
-  margin-top:6px;
-  padding:10px;
+input,
+textarea,
+button{
+width:100%;
+box-sizing:border-box;
+margin-top:6px;
+padding:10px;
 }
 
 button{
-  background:#2d6cdf;
-  color:white;
-  border:none;
-  border-radius:8px;
+background:#2d6cdf;
+color:white;
+border:none;
+border-radius:8px;
 }
+
+.stats{
+display:flex;
+gap:10px;
+margin-top:10px;
+}
+
+.stats div{
+flex:1;
+background:white;
+padding:10px;
+text-align:center;
+border-radius:10px;
+}
+
 </style>
 
 </head>
@@ -58,28 +82,64 @@ button{
 
 <div class="card">
 
-<input id="observer" placeholder="観察者名">
+<input
+id="observer"
+placeholder="観察者名">
 
-<input id="count" type="number" min="1" value="1">
+<input
+id="count"
+type="number"
+min="1"
+value="1">
 
-<input id="observeDate" type="datetime-local">
+<input
+id="observeDate"
+type="datetime-local">
 
-<textarea id="memo" placeholder="メモ"></textarea>
+<textarea
+id="memo"
+placeholder="メモ"></textarea>
 
-<input id="photo" type="file" accept="image/*">
+<input
+id="photo"
+type="file"
+accept="image/*">
 
-<button onclick="getLocation()">📍現在地取得</button>
+<button onclick="getLocation()">
+📍現在地取得
+</button>
 
 <div id="status">
 地図タップまたはGPS取得
 </div>
 
 <button onclick="saveRecord()">
-🕊️ 記録送信
+🕊️記録送信
 </button>
 
 </div>
 
+<div class="stats">
+
+<div>
+<b id="recordCount">0</b>
+<br>
+記録数
+</div>
+
+<div>
+<b id="birdCount">0</b>
+<br>
+総羽数
+</div>
+
+<div>
+<b id="averageBirds">0</b>
+<br>
+平均
+</div>
+
+</div>
 <script>
 
 const API =
@@ -87,7 +147,7 @@ const API =
 
 let lat = null;
 let lng = null;
-let current = null;
+let currentMarker = null;
 
 const map =
 L.map("map")
@@ -96,84 +156,223 @@ L.map("map")
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 {
- attribution:"OpenStreetMap"
+attribution:"© OpenStreetMap"
 }
 ).addTo(map);
 
 function getLocation(){
 
- status.innerText="GPS取得中";
+status.innerText = "GPS取得中...";
 
- navigator.geolocation.getCurrentPosition(
+navigator.geolocation.getCurrentPosition(
 
-  pos=>{
+pos => {
 
-   lat=pos.coords.latitude;
-   lng=pos.coords.longitude;
+lat = pos.coords.latitude;
+lng = pos.coords.longitude;
 
-   if(current){
-    map.removeLayer(current);
-   }
+status.innerText = "✅ GPS取得成功";
 
-   current=L.marker([lat,lng])
-   .addTo(map)
-   .bindPopup("現在位置")
-   .openPopup();
+if(currentMarker){
+map.removeLayer(currentMarker);
+}
 
-   map.setView([lat,lng],16);
+currentMarker =
+L.marker([lat,lng])
+.addTo(map)
+.bindPopup("現在位置")
+.openPopup();
 
-   status.innerText="GPS取得成功";
+map.setView([lat,lng],16);
 
-  },
+},
 
-  err=>{
+err => {
 
-   status.innerText=
-   "GPS失敗。地図をタップしてください";
+status.innerText =
+"GPS失敗。地図をタップしてください";
 
-  },
+},
 
-  {
-   enableHighAccuracy:true,
-   timeout:20000
-  }
+{
+enableHighAccuracy:true,
+timeout:20000
+}
 
- );
+);
 
 }
 
 map.on("click",e=>{
 
- lat=e.latlng.lat;
- lng=e.latlng.lng;
+lat = e.latlng.lat;
+lng = e.latlng.lng;
 
- if(current){
-  map.removeLayer(current);
- }
+if(currentMarker){
+map.removeLayer(currentMarker);
+}
 
- current=L.marker([lat,lng])
- .addTo(map)
- .bindPopup("記録予定地点")
- .openPopup();
+currentMarker =
+L.marker([lat,lng])
+.addTo(map)
+.bindPopup("記録地点")
+.openPopup();
 
- status.innerText="位置選択完了";
+status.innerText =
+"✅ 位置選択完了";
 
 });
 
-function saveRecord(){
+async function loadRecords(){
 
- if(lat===null || lng===null){
+try{
 
-   alert("位置を選択してください");
-   return;
+const res = await fetch(API);
 
- }
+const data = await res.json();
 
- alert("V5次段階で保存処理を追加します");
+let totalBirds = 0;
+
+document.getElementById(
+"recordCount"
+).innerText = data.length;
+
+data.forEach(x=>{
+
+totalBirds += Number(x.count || 0);
+
+let color = "🔵";
+
+if(Number(x.count) >= 11){
+color = "🔴";
+}
+else if(Number(x.count) >= 4){
+color = "🟠";
+}
+
+const popup = `
+<h3>${color} 🕊️ ${x.count}羽</h3>
+
+<p>👤 ${x.observer}</p>
+
+<p>📅 ${x.date}</p>
+
+<p>📝 ${x.memo || "なし"}</p>
+
+${
+x.photo
+? `<p>${x.photo}📷 写真を見る</a></p>`
+: "<p>📷 写真なし</p>"
+}
+`;
+
+if(x.lat && x.lng){
+
+L.marker([
+Number(x.lat),
+Number(x.lng)
+])
+.addTo(map)
+.bindPopup(popup);
 
 }
+
+});
+
+document.getElementById(
+"birdCount"
+).innerText = totalBirds;
+
+document.getElementById(
+"averageBirds"
+).innerText =
+data.length
+? (totalBirds/data.length).toFixed(1)
+: 0;
+
+}catch(err){
+
+console.log(err);
+
+}
+
+}
+
+async function saveRecord(){
+
+if(lat===null || lng===null){
+
+alert("位置を選択してください");
+return;
+
+}
+
+let photoBase64 = "";
+
+const file =
+document.getElementById("photo")
+.files[0];
+
+if(file){
+
+photoBase64 =
+await new Promise(resolve=>{
+
+const reader =
+new FileReader();
+
+reader.onload = () =>
+resolve(
+reader.result.split(",")[1]
+);
+
+reader.readAsDataURL(file);
+
+});
+
+}
+
+await fetch(API,{
+
+method:"POST",
+
+body:JSON.stringify({
+
+observeDate:
+observeDate.value,
+
+observer:
+observer.value,
+
+count:
+count.value,
+
+lat:lat,
+
+lng:lng,
+
+weather:"-",
+
+memo:
+memo.value,
+
+photo:
+photoBase64
+
+})
+
+});
+
+alert("保存しました");
+
+location.reload();
+
+}
+
+loadRecords();
 
 </script>
 
 </body>
+
 </html>
